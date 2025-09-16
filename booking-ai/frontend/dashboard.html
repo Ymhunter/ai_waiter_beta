@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Worker Dashboard</title>
+</head>
+<body>
+  <h1>Manage Slots</h1>
+  <form id="slotForm">
+    Start: <input type="datetime-local" id="start"><br>
+    End: <input type="datetime-local" id="end"><br>
+    <button type="submit">Add Slot</button>
+  </form>
+  <h2>Available Slots</h2>
+  <ul id="slotsList"></ul>
+
+<script>
+async function loadSlots() {
+  let res = await fetch("http://localhost:8000/slots/");
+  let data = await res.json();
+  document.getElementById("slotsList").innerHTML = data.map(s => 
+    `<li>${s.start_time} → ${s.end_time}</li>`).join("");
+}
+
+document.getElementById("slotForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  let start = document.getElementById("start").value;
+  let end = document.getElementById("end").value;
+  await fetch("http://localhost:8000/slots/", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({start_time: start, end_time: end})
+  });
+  loadSlots();
+});
+
+loadSlots();
+</script>
+</body>
+</html>

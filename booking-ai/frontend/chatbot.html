@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Booking Chatbot</title>
+  <style>
+    body { font-family: Arial; }
+    #chat { border: 1px solid #ccc; padding: 10px; width: 400px; height: 400px; overflow-y: scroll; }
+    .user { color: blue; }
+    .bot { color: green; }
+  </style>
+</head>
+<body>
+  <h1>Booking Chatbot 🤖</h1>
+  <div id="chat"></div>
+  <input type="text" id="message" placeholder="Type your message...">
+  <button onclick="sendMessage()">Send</button>
+
+<script>
+async function sendMessage() {
+  const input = document.getElementById("message");
+  const msg = input.value;
+  input.value = "";
+
+  document.getElementById("chat").innerHTML += `<p class="user">You: ${msg}</p>`;
+
+  const res = await fetch("https://ai-waiter-beta.onrender.com/chat", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({message: msg})
+  });
+  const data = await res.json();
+  document.getElementById("chat").innerHTML += `<p class="bot">Bot: ${data.reply}</p>`;
+}
+</script>
+
+</body>
+</html>
