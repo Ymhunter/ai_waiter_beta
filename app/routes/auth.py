@@ -1,33 +1,30 @@
-from fastapi import APIRouter, Form, Request, Depends
+from fastapi import APIRouter, Request, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
-from starlette.middleware.sessions import SessionMiddleware
-import os
+from starlette.templating import Jinja2Templates
 
 router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
-# Example users (username: password)
-USERS = {
-    "admin": "1234",
-    "staff1": "pass1",
-    "staff2": "pass2"
-}
-
+# Simple login form page
 @router.get("/login", response_class=HTMLResponse)
-async def login_page():
-    return RedirectResponse(url="/static/login.html")
+async def login_form(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
+# Handle login POST
 @router.post("/login")
 async def login(request: Request, username: str = Form(...), password: str = Form(...)):
-    if username in USERS and USERS[username] == password:
+    if username == "admin" and password == "1234":  # replace with real check
         request.session["user"] = username
         return RedirectResponse(url="/dashboard", status_code=302)
-    return RedirectResponse(url="/login?error=invalid", status_code=302)
+    return RedirectResponse(url="/login?error=1", status_code=302)
 
+# Logout
 @router.get("/logout")
 async def logout(request: Request):
     request.session.clear()
     return RedirectResponse(url="/login", status_code=302)
 
+# Dependency
 def require_login(request: Request):
     if "user" not in request.session:
         return RedirectResponse(url="/login", status_code=302)
