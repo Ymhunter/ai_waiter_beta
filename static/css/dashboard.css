@@ -57,3 +57,13 @@ button:hover { background: #0056b3; }
   table, th, td { font-size: 13px; }
   form { flex-direction: column; }
 }
+header a {
+  background: #f44336;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: white;
+  font-size: 14px;
+}
+header a:hover {
+  background: #d32f2f;
+}
