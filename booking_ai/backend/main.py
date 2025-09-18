@@ -36,23 +36,22 @@ functions = [
 
 @app.post("/chat")
 def chat(user_input: dict = Body(...)):
-    message = user_input["message"]
-
+    # Send user input to GPT
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
-            {"role": "system", "content": "You are a helpful booking assistant. Use the available functions to check slots and make bookings."},
-            {"role": "user", "content": message}
-        ],
-        functions=functions,
-        function_call="auto"
+            {"role": "system", "content": "You are a booking assistant."},
+            {"role": "user", "content": user_input.get("message", "")},
+        ]
     )
 
+    # Get the assistant’s reply
     msg = response.choices[0].message
 
-    if msg.get("function_call"):
-        fn_name = msg.function_call.name
-        args = eval(msg.function_call.arguments)
+    # Handle function calls (new API style)
+    if "function_call" in msg:
+        fn_name = msg["function_call"]["name"]
+        args = eval(msg["function_call"]["arguments"])
 
         if fn_name == "get_slots":
             slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
@@ -62,4 +61,5 @@ def chat(user_input: dict = Body(...)):
             booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
             return {"reply": f"Booking confirmed ✅: {booking_res}"}
 
-    return {"reply": msg.content}
+    # Default: return assistant’s text
+    return {"reply": msg.get("content", "")}
