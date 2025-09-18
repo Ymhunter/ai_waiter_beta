@@ -32,8 +32,14 @@ from fastapi.responses import RedirectResponse
 
 from fastapi import Request
 from fastapi.responses import RedirectResponse
+from fastapi import Request, HTTPException
 
 def require_login(request: Request):
     if "user" not in request.session:
-        return RedirectResponse(url="/login", status_code=302)
+        # 🚨 force redirect before hitting dashboard
+        raise HTTPException(
+            status_code=303,  # 303 redirect
+            detail="Redirect to login",
+            headers={"Location": "/login"},
+        )
     return request.session["user"]

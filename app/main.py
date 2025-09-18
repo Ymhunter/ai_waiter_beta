@@ -39,6 +39,10 @@ app.include_router(payment.router)
 # ------------------------------
 # WebSockets
 # ------------------------------
+@app.websocket("/ws/dashboard")
+async def dashboard_ws(websocket: WebSocket, db: Session = Depends(get_db)):
+    await connect_ws(websocket)
+
 @app.websocket("/ws")
 async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
     await connect_ws(websocket)
