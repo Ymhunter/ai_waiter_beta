@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import RedirectResponse, HTMLResponse
 from starlette.templating import Jinja2Templates
-
+from fastapi import HTTPException
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
@@ -27,5 +27,6 @@ async def logout(request: Request):
 # Dependency
 def require_login(request: Request):
     if "user" not in request.session:
-        return RedirectResponse(url="/login", status_code=302)
+        # force redirect
+        raise HTTPException(status_code=303, detail="Redirect", headers={"Location": "/login"})
     return request.session["user"]
