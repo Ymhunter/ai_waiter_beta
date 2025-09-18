@@ -1,8 +1,8 @@
 from fastapi import WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
 import asyncio
 
 active_connections: list[WebSocket] = []
+
 
 async def connect_ws(websocket: WebSocket):
     """Handle new WebSocket connections (chat + dashboard)."""
@@ -10,10 +10,12 @@ async def connect_ws(websocket: WebSocket):
     active_connections.append(websocket)
     try:
         while True:
-            await websocket.receive_text()  # keep alive
+            # Just keep the connection alive by waiting for incoming messages
+            await websocket.receive_text()
     except WebSocketDisconnect:
         if websocket in active_connections:
             active_connections.remove(websocket)
+
 
 async def broadcast_update(slots, bookings):
     """Send updated slots & bookings to all connected clients."""
@@ -26,6 +28,7 @@ async def broadcast_update(slots, bookings):
             to_remove.append(ws)
     for ws in to_remove:
         active_connections.remove(ws)
+
 
 def trigger_broadcast(slots, bookings):
     """Schedule broadcast without blocking API response."""
