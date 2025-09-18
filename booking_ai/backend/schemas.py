@@ -1,27 +1,41 @@
 from pydantic import BaseModel
-from datetime import datetime
 
+
+# -------------------------------
+# Slot Schemas
+# -------------------------------
 class SlotBase(BaseModel):
-    start_time: datetime
-    end_time: datetime
+    date: str
+    time: str
+
 
 class SlotCreate(SlotBase):
     pass
 
-class SlotResponse(SlotBase):
-    id: int
-    available: bool
-    class Config:
-        from_attributes = True
 
-class BookingCreate(BaseModel):
-    slot_id: int
+class Slot(SlotBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+# -------------------------------
+# Booking Schemas
+# -------------------------------
+class BookingBase(BaseModel):
     customer_name: str
     customer_email: str
-
-class BookingResponse(BaseModel):
-    id: int
     slot_id: int
-    status: str
+
+
+class BookingCreate(BookingBase):
+    pass
+
+
+class Booking(BookingBase):
+    id: int
+    slot: Slot  # nested slot data
+
     class Config:
-        from_attributes = True
+        orm_mode = True

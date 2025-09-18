@@ -87,7 +87,7 @@ def chat(user_input: dict = Body(...)):
 # Serve Chat UI
 @app.get("/chat")
 def get_chat():
-    return FileResponse(os.path.join(FRONTEND_DIR, "chat.html"))
+    return FileResponse(os.path.join(FRONTEND_DIR, "chatbot.html"))
 
 
 # Serve Dashboard UI

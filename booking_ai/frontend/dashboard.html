@@ -1,123 +1,26 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>AI Waiter — Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <style>
-    body {
-      margin: 0;
-      font: 16px system-ui, sans-serif;
-      background: #0f172a;
-      color: #e5e7eb;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-    }
-    header {
-      padding: 16px;
-      background: #1e293b;
-      font-size: 20px;
-      font-weight: bold;
-      text-align: center;
-    }
-    main {
-      flex: 1;
-      padding: 16px;
-      overflow-y: auto;
-    }
-    section {
-      margin-bottom: 32px;
-    }
-    h2 {
-      margin-bottom: 12px;
-      border-bottom: 2px solid #334155;
-      padding-bottom: 6px;
-    }
-    button {
-      margin: 4px 0;
-      padding: 8px 12px;
-      border: none;
-      border-radius: 6px;
-      background: #2563eb;
-      color: white;
-      font-weight: 600;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #1d4ed8;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 8px;
-    }
-    th, td {
-      padding: 8px;
-      border: 1px solid #334155;
-      text-align: left;
-    }
-    th {
-      background: #1e293b;
-    }
-  </style>
-</head>
-<body>
-  <header>📊 AI Waiter Dashboard</header>
-  <main>
-    <section>
-      <h2>Available Slots</h2>
-      <button onclick="loadSlots()">🔄 Refresh Slots</button>
-      <table id="slotsTable">
-        <thead>
-          <tr><th>ID</th><th>Time</th><th>Available</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+from .. import models, schemas, database
 
-    <section>
-      <h2>Bookings</h2>
-      <button onclick="loadBookings()">🔄 Refresh Bookings</button>
-      <table id="bookingsTable">
-        <thead>
-          <tr><th>ID</th><th>Slot ID</th><th>Name</th><th>Email</th></tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </section>
-  </main>
+router = APIRouter(prefix="/slots", tags=["Slots"])
 
-  <script>
-    const API = "https://ai-waiter-beta.onrender.com";
+@router.get("/")
+def get_slots(db: Session = Depends(database.get_db)):
+    return db.query(models.Slot).all()
 
-    async function loadSlots() {
-      const res = await fetch(`${API}/slots/`);
-      const data = await res.json();
-      const tbody = document.querySelector("#slotsTable tbody");
-      tbody.innerHTML = "";
-      data.forEach(slot => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${slot.id}</td><td>${slot.time}</td><td>${slot.is_available}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
+@router.post("/")
+def create_slot(slot: schemas.SlotCreate, db: Session = Depends(database.get_db)):
+    db_slot = models.Slot(**slot.dict())
+    db.add(db_slot)
+    db.commit()
+    db.refresh(db_slot)
+    return db_slot
 
-    async function loadBookings() {
-      const res = await fetch(`${API}/bookings/`);
-      const data = await res.json();
-      const tbody = document.querySelector("#bookingsTable tbody");
-      tbody.innerHTML = "";
-      data.forEach(b => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${b.id}</td><td>${b.slot_id}</td><td>${b.customer_name}</td><td>${b.customer_email}</td>`;
-        tbody.appendChild(tr);
-      });
-    }
-
-    // Load data on startup
-    loadSlots();
-    loadBookings();
-  </script>
-</body>
-</html>
+@router.delete("/{slot_id}")
+def delete_slot(slot_id: int, db: Session = Depends(database.get_db)):
+    slot = db.query(models.Slot).get(slot_id)
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    db.delete(slot)
+    db.commit()
+    return {"ok": True}

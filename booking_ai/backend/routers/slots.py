@@ -1,24 +1,31 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from .. import models, schemas, database
 
 router = APIRouter(prefix="/slots", tags=["Slots"])
 
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+# ✅ Get all slots
+@router.get("/")
+def get_slots(db: Session = Depends(database.get_db)):
+    return db.query(models.Slot).all()
 
-@router.post("/", response_model=schemas.SlotResponse)
-def create_slot(slot: schemas.SlotCreate, db: Session = Depends(get_db)):
-    new_slot = models.Slot(start_time=slot.start_time, end_time=slot.end_time)
-    db.add(new_slot)
+
+# ✅ Create a new slot
+@router.post("/")
+def create_slot(slot: schemas.SlotCreate, db: Session = Depends(database.get_db)):
+    db_slot = models.Slot(**slot.dict())
+    db.add(db_slot)
     db.commit()
-    db.refresh(new_slot)
-    return new_slot
+    db.refresh(db_slot)
+    return db_slot
 
-@router.get("/", response_model=list[schemas.SlotResponse])
-def get_slots(db: Session = Depends(get_db)):
-    return db.query(models.Slot).filter(models.Slot.available == True).all()
+
+# ✅ Delete a slot
+@router.delete("/{slot_id}")
+def delete_slot(slot_id: int, db: Session = Depends(database.get_db)):
+    slot = db.query(models.Slot).filter(models.Slot.id == slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    db.delete(slot)
+    db.commit()
+    return {"ok": True, "deleted_id": slot_id}
