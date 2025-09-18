@@ -36,7 +36,6 @@ functions = [
 
 @app.post("/chat")
 def chat(user_input: dict = Body(...)):
-    """Main chat endpoint"""
     try:
         user_message = user_input.get("message", "")
 
@@ -52,22 +51,9 @@ def chat(user_input: dict = Body(...)):
 
         msg = response.choices[0].message
 
+        # 🔍 Debug: return raw tool_calls
         if msg.tool_calls:
-            import json
-            tool_call = msg.tool_calls[0]
-            fn_name = tool_call.function.name
-            try:
-                args = json.loads(tool_call.function.arguments or "{}")
-            except Exception:
-                args = {}
-
-            if fn_name == "get_slots":
-                slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
-                return {"reply": f"Here are the available slots: {slots_res}"}
-
-            if fn_name == "create_booking":
-                booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
-                return {"reply": f"Booking confirmed ✅: {booking_res}"}
+            return {"raw_tool_calls": [tc.dict() for tc in msg.tool_calls]}
 
         return {"reply": msg.content}
 
