@@ -51,10 +51,27 @@ def chat(user_input: dict = Body(...)):
 
         msg = response.choices[0].message
 
-        # 🔍 Debug: return raw tool_calls
         if msg.tool_calls:
-            return {"raw_tool_calls": [tc.dict() for tc in msg.tool_calls]}
+            tool_call = msg.tool_calls[0]
+            fn_name = tool_call.function.name
+            args = {}
 
+            # only parse JSON if not empty
+            if tool_call.function.arguments and tool_call.function.arguments != "{}":
+                try:
+                    args = json.loads(tool_call.function.arguments)
+                except Exception:
+                    args = {}
+
+            if fn_name == "get_slots":
+                slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
+                return {"reply": f"Here are the available slots: {slots_res}"}
+
+            if fn_name == "create_booking":
+                booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
+                return {"reply": f"Booking confirmed ✅: {booking_res}"}
+
+        # fallback: return plain assistant reply
         return {"reply": msg.content}
 
     except Exception as e:
