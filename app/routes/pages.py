@@ -16,5 +16,5 @@ async def root():
 # 👇 Secure dashboard
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(request: Request, auth=Depends(require_login)):
-    username = request.session.get("user")
+    username = request.session.get("user")  # set at login
     return templates.TemplateResponse("dashboard.html", {"request": request, "username": username})

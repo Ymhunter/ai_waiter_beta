@@ -25,8 +25,9 @@ async def logout(request: Request):
     return RedirectResponse(url="/login", status_code=302)
 
 # Dependency
+from fastapi.responses import RedirectResponse
+
 def require_login(request: Request):
     if "user" not in request.session:
-        # force redirect
-        raise HTTPException(status_code=303, detail="Redirect", headers={"Location": "/login"})
+        return RedirectResponse(url="/login", status_code=302)
     return request.session["user"]
