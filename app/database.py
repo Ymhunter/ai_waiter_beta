@@ -79,19 +79,19 @@ def to_time(v):
         return None
     if isinstance(v, TimeType):
         return v
-    text_v = str(v)
+    text_v = str(v).strip()
     try:
         # Handles "09:00", "09:00:00", "09:00:00.000Z"
         if "Z" in text_v:
             text_v = text_v.replace("Z", "")
+        if len(text_v) == 5:  # HH:MM
+            return datetime.strptime(text_v, "%H:%M").time()
+        if len(text_v) == 8:  # HH:MM:SS
+            return datetime.strptime(text_v, "%H:%M:%S").time()
         return datetime.fromisoformat(f"2000-01-01T{text_v}").time()
-    except Exception:
-        for fmt in ("%H:%M", "%H:%M:%S"):
-            try:
-                return datetime.strptime(text_v, fmt).time()
-            except Exception:
-                continue
-    return None
+    except Exception as e:
+        print(f"to_time parse error for {v}: {e}")
+        return None
 
 
 # ------------------------------
