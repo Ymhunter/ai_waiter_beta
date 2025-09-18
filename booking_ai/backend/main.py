@@ -28,7 +28,7 @@ app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 @app.get("/")
 def home():
-    return FileResponse(os.path.join(FRONTEND_DIR, "chat.html"))
+    return FileResponse(os.path.join(FRONTEND_DIR, "chatbot.html"))
 
 @app.get("/dashboard")
 def dashboard():
