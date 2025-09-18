@@ -23,7 +23,7 @@ app.mount("/static", StaticFiles(directory=FRONTEND_STATIC), name="static")
 # serve chat and dashboard at clean routes
 @app.get("/chat-ui")
 def serve_chat():
-    return FileResponse(os.path.join(FRONTEND_STATIC, "chat.html"))
+    return FileResponse(os.path.join(FRONTEND_STATIC, "chatbot.html"))
 
 @app.get("/dashboard")
 def serve_dashboard():
