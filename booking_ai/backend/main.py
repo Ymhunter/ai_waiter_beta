@@ -1,28 +1,39 @@
 import os
-import requests
 from fastapi import FastAPI, Body
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from openai import OpenAI
+import requests
 
 from .routers import slots, bookings
 
 app = FastAPI(title="AI Booking Backend")
 
-# Routers
+# include routers
 app.include_router(slots.router)
 app.include_router(bookings.router)
 
-# Serve static files
+# --- FRONTEND SETUP ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-STATIC_DIR = os.path.join(BASE_DIR, "..", "static")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+FRONTEND_STATIC = os.path.join(BASE_DIR, "..", "frontend", "static")
 
-# OpenAI client
+# serve everything in frontend/static under /static
+app.mount("/static", StaticFiles(directory=FRONTEND_STATIC), name="static")
+
+# serve chat and dashboard at clean routes
+@app.get("/chat-ui")
+def serve_chat():
+    return FileResponse(os.path.join(FRONTEND_STATIC, "chat.html"))
+
+@app.get("/dashboard")
+def serve_dashboard():
+    return FileResponse(os.path.join(FRONTEND_STATIC, "dashboard.html"))
+
+
+# --- OPENAI + CHAT ---
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 PUBLIC_URL = "https://ai-waiter-beta.onrender.com"
 
-# Tools
 functions = [
     {
         "name": "get_slots",
@@ -44,17 +55,10 @@ functions = [
     }
 ]
 
-@app.get("/chat-ui")
-def serve_chat():
-    return FileResponse(os.path.join(STATIC_DIR, "chat.html"))
-
-@app.get("/dashboard")
-def serve_dashboard():
-    return FileResponse(os.path.join(STATIC_DIR, "dashboard.html"))
-
 
 @app.post("/chat")
 def chat(user_input: dict = Body(...)):
+    import json
     try:
         user_message = user_input.get("message", "")
 
@@ -77,7 +81,6 @@ def chat(user_input: dict = Body(...)):
 
             if tool_call.function.arguments and tool_call.function.arguments != "{}":
                 try:
-                    import json
                     args = json.loads(tool_call.function.arguments)
                 except Exception:
                     args = {}
