@@ -6,3 +6,4 @@ python-dotenv
 pydantic
 openai
 itsdangerous
+python-multipart>=0.0.9
