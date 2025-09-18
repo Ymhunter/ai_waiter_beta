@@ -10,7 +10,6 @@ app.include_router(slots.router)
 app.include_router(bookings.router)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 PUBLIC_URL = "https://ai-waiter-beta.onrender.com"
 
 functions = [
@@ -34,32 +33,43 @@ functions = [
     }
 ]
 
+
 @app.post("/chat")
 def chat(user_input: dict = Body(...)):
-    # Send user input to GPT
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a booking assistant."},
-            {"role": "user", "content": user_input.get("message", "")},
-        ]
-    )
+    """Main chat endpoint"""
+    try:
+        # extract text from request
+        user_message = user_input.get("message", "")
 
-    # Get the assistant’s reply
-    msg = response.choices[0].message
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a booking assistant."},
+                {"role": "user", "content": user_message},
+            ],
+            tools=[{"type": "function", "function": fn} for fn in functions],
+            tool_choice="auto"
+        )
 
-    # Handle function calls (new API style)
-    if "function_call" in msg:
-        fn_name = msg["function_call"]["name"]
-        args = eval(msg["function_call"]["arguments"])
+        # grab assistant reply
+        msg = response.choices[0].message
 
-        if fn_name == "get_slots":
-            slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
-            return {"reply": f"Here are the available slots: {slots_res}"}
+        # check if model wants to call a function
+        if msg.tool_calls:
+            tool_call = msg.tool_calls[0]
+            fn_name = tool_call.function.name
+            args = eval(tool_call.function.arguments)
 
-        if fn_name == "create_booking":
-            booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
-            return {"reply": f"Booking confirmed ✅: {booking_res}"}
+            if fn_name == "get_slots":
+                slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
+                return {"reply": f"Here are the available slots: {slots_res}"}
 
-    # Default: return assistant’s text
-    return {"reply": msg.get("content", "")}
+            if fn_name == "create_booking":
+                booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
+                return {"reply": f"Booking confirmed ✅: {booking_res}"}
+
+        # otherwise just return the assistant reply
+        return {"reply": msg.content}
+
+    except Exception as e:
+        return {"error": str(e)}
