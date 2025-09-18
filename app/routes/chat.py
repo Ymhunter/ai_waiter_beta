@@ -1,4 +1,4 @@
-import re, json, uuid
+import re, json, uuid, ast
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..models import ChatMessage
@@ -19,8 +19,24 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
         future_slots = [f"{d} {t}" for d, times in slots.items() for t in times]
         slot_info = ", ".join(future_slots) if future_slots else "No slots available"
 
+        # ✅ Force assistant to always return valid JSON with double quotes
         messages = [
-            {"role": "system", "content": f"You are a polite barbershop assistant. Available slots are: {slot_info}. Collect customer name, date, and time. If all present, respond ONLY with JSON: {{'service':'Haircut','date':'YYYY-MM-DD','time':'HH:MM','customer_name':'NAME'}}"}
+            {"role": "system", "content": f"""
+You are a polite barbershop assistant. 
+Available slots are: {slot_info}.
+
+Your task:
+- Collect the customer's name
+- Collect a valid available date (YYYY-MM-DD)
+- Collect a valid available time (HH:MM)
+
+❗ Rules:
+- If the user already gave all three (name, date, time), respond ONLY with valid JSON:
+{{"service":"Haircut","date":"YYYY-MM-DD","time":"HH:MM","customer_name":"NAME"}}
+- Use double quotes around all keys and string values.
+- Do NOT add any extra words, explanations, or formatting.
+- If something is missing, only ask for that missing part.
+"""}
         ]
         if user_input.history:
             messages.extend(user_input.history)
@@ -31,7 +47,13 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
 
         booking_match = re.search(r"\{.*?\}", reply, re.DOTALL)
         if booking_match:
-            booking_data = json.loads(booking_match.group())
+            raw_json = booking_match.group()
+            try:
+                booking_data = json.loads(raw_json)  # strict JSON
+            except json.JSONDecodeError:
+                # fallback if GPT slips and uses single quotes
+                booking_data = ast.literal_eval(raw_json)
+
             slot_exists = db.query(Slot).filter_by(
                 date=to_date(booking_data["date"]),
                 time=to_time(booking_data["time"]),
@@ -54,7 +76,11 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
             db.commit()
             trigger_broadcast(db)
 
-            return {"status": "reserved","reply": f"✅ Reserved! Booking ID: {booking_id} for {booking.customer_name} at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}.<br><br>💳 Pay now?","booking_id": booking_id}
+            return {
+                "status": "reserved",
+                "reply": f"✅ Reserved! Booking ID: {booking_id} for {booking.customer_name} at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}.<br><br>💳 Pay now?",
+                "booking_id": booking_id
+            }
 
         return {"status": "ok", "reply": reply}
     except Exception as e:
