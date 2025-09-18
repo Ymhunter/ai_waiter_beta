@@ -1,26 +1,127 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from .. import models, schemas, database
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Manage Slots</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h1, h2 {
+      color: #444;
+    }
+    form {
+      margin-bottom: 20px;
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    input, button {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      background: #fff;
+      margin: 8px 0;
+      padding: 10px;
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .delete-btn {
+      background: #e74c3c;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 4px;
+      color: white;
+      cursor: pointer;
+    }
+    .delete-btn:hover {
+      background: #c0392b;
+    }
+  </style>
+</head>
+<body>
+  <h1>Slot Management Dashboard</h1>
 
-router = APIRouter(prefix="/slots", tags=["Slots"])
+  <form id="slot-form">
+    <label>
+      Time:
+      <input type="text" id="time" placeholder="e.g., 19:00" required>
+    </label>
+    <label>
+      Capacity:
+      <input type="number" id="capacity" placeholder="e.g., 4" required>
+    </label>
+    <button type="submit">➕ Add Slot</button>
+  </form>
 
-@router.get("/")
-def get_slots(db: Session = Depends(database.get_db)):
-    return db.query(models.Slot).all()
+  <h2>Available Slots</h2>
+  <ul id="slots-list"></ul>
 
-@router.post("/")
-def create_slot(slot: schemas.SlotCreate, db: Session = Depends(database.get_db)):
-    db_slot = models.Slot(**slot.dict())
-    db.add(db_slot)
-    db.commit()
-    db.refresh(db_slot)
-    return db_slot
+  <script>
+    const API_URL = "/slots";
 
-@router.delete("/{slot_id}")
-def delete_slot(slot_id: int, db: Session = Depends(database.get_db)):
-    slot = db.query(models.Slot).get(slot_id)
-    if not slot:
-        raise HTTPException(status_code=404, detail="Slot not found")
-    db.delete(slot)
-    db.commit()
-    return {"ok": True}
+    async function loadSlots() {
+      try {
+        const res = await fetch(API_URL);
+        const slots = await res.json();
+        const list = document.getElementById("slots-list");
+        list.innerHTML = "";
+        slots.forEach(slot => {
+          const li = document.createElement("li");
+          li.textContent = `${slot.time} - Capacity: ${slot.capacity}`;
+          const btn = document.createElement("button");
+          btn.textContent = "❌ Delete";
+          btn.className = "delete-btn";
+          btn.onclick = async () => {
+            await fetch(`${API_URL}/${slot.id}`, { method: "DELETE" });
+            loadSlots();
+          };
+          li.appendChild(btn);
+          list.appendChild(li);
+        });
+      } catch (err) {
+        console.error("Error loading slots:", err);
+      }
+    }
+
+    document.getElementById("slot-form").onsubmit = async (e) => {
+      e.preventDefault();
+      const time = document.getElementById("time").value;
+      const capacity = parseInt(document.getElementById("capacity").value);
+      await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ time, capacity })
+      });
+      e.target.reset();
+      loadSlots();
+    };
+
+    // Load slots on page load
+    loadSlots();
+  </script>
+</body>
+</html>
