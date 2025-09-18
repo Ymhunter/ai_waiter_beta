@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ..models import ChatMessage
 from ..deps import get_db
-from ..helpers import clean_expired_slots, clean_stale_bookings, get_slots_sync
+from ..helpers import clean_expired_slots, clean_stale_bookings, get_slots_sync, get_bookings_sync
 from ..config import client
 from ..database import Booking, Slot, to_date, to_time
 from ..websocket_manager import trigger_broadcast
