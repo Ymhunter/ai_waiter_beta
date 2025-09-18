@@ -12,7 +12,7 @@ def get_slots(db: Session = Depends(database.get_db)):
 
 @router.post("/")
 def create_slot(slot: schemas.SlotCreate, db: Session = Depends(database.get_db)):
-    # ✅ use .model_dump() for Pydantic v2
+    # ✅ For Pydantic v2
     db_slot = models.Slot(**slot.model_dump())
     db.add(db_slot)
     db.commit()
@@ -22,7 +22,7 @@ def create_slot(slot: schemas.SlotCreate, db: Session = Depends(database.get_db)
 
 @router.delete("/{slot_id}")
 def delete_slot(slot_id: int, db: Session = Depends(database.get_db)):
-    # ✅ use db.get instead of query().get()
+    # ✅ For SQLAlchemy 2.x
     slot = db.get(models.Slot, slot_id)
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")
