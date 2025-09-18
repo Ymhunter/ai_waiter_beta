@@ -20,12 +20,11 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # Public URL for function calls
 PUBLIC_URL = "https://ai-waiter-beta.onrender.com"
 
-# Mount frontend files
+# Directories
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "../frontend")
 
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
+# ✅ Serve frontend HTML files directly
 @app.get("/")
 def home():
     return FileResponse(os.path.join(FRONTEND_DIR, "chatbot.html"))
@@ -33,6 +32,11 @@ def home():
 @app.get("/dashboard")
 def dashboard():
     return FileResponse(os.path.join(FRONTEND_DIR, "dashboard.html"))
+
+# ✅ Optional: if you later add static assets (CSS, JS, images)
+STATIC_DIR = os.path.join(FRONTEND_DIR, "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 # Chat endpoint
 @app.post("/chat")
@@ -49,51 +53,9 @@ def chat(payload: dict = Body(...)):
                 {"role": "system", "content": "You are a booking assistant."},
                 {"role": "user", "content": user_message},
             ],
-            tools=[
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "get_slots",
-                        "description": "Get available booking slots",
-                        "parameters": {"type": "object", "properties": {}},
-                    },
-                },
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "create_booking",
-                        "description": "Create a booking for a slot",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "slot_id": {"type": "integer"},
-                                "customer_name": {"type": "string"},
-                                "customer_email": {"type": "string"},
-                            },
-                            "required": ["slot_id", "customer_name", "customer_email"],
-                        },
-                    },
-                },
-            ]
         )
 
         msg = response.choices[0].message
-
-        # If AI wants to call a function
-        if msg.get("tool_calls"):
-            tool = msg["tool_calls"][0]
-            fn_name = tool["function"]["name"]
-            args = eval(tool["function"]["arguments"])
-
-            if fn_name == "get_slots":
-                slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
-                return {"reply": f"Here are the available slots: {slots_res}"}
-
-            if fn_name == "create_booking":
-                booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
-                return {"reply": f"Booking confirmed ✅: {booking_res}"}
-
-        # Otherwise return plain reply
         return {"reply": msg.get("content")}
 
     except Exception as e:
