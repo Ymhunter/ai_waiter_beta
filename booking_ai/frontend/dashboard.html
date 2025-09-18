@@ -2,125 +2,63 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - Manage Slots</title>
+  <title>Booking Dashboard</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 20px;
-      background: #f9f9f9;
-      color: #333;
-    }
-    h1, h2 {
-      color: #444;
-    }
-    form {
-      margin-bottom: 20px;
-      background: #fff;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-    input, button {
-      padding: 8px;
-      margin: 5px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    button {
-      background: #4CAF50;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #45a049;
-    }
-    ul {
-      list-style: none;
-      padding: 0;
-    }
-    li {
-      background: #fff;
-      margin: 8px 0;
-      padding: 10px;
-      border-radius: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    .delete-btn {
-      background: #e74c3c;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 4px;
-      color: white;
-      cursor: pointer;
-    }
-    .delete-btn:hover {
-      background: #c0392b;
-    }
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    .slot { padding: 10px; border: 1px solid #ccc; margin: 5px 0; }
+    button { margin-left: 10px; }
   </style>
 </head>
 <body>
-  <h1>Slot Management Dashboard</h1>
+  <h1>Booking Dashboard</h1>
 
-  <form id="slot-form">
-    <label>
-      Time:
-      <input type="text" id="time" placeholder="e.g., 19:00" required>
-    </label>
-    <label>
-      Capacity:
-      <input type="number" id="capacity" placeholder="e.g., 4" required>
-    </label>
-    <button type="submit">➕ Add Slot</button>
-  </form>
+  <h2>Add Slot</h2>
+  <input id="slotTime" placeholder="YYYY-MM-DD HH:MM">
+  <button onclick="addSlot()">Add</button>
 
   <h2>Available Slots</h2>
-  <ul id="slots-list"></ul>
+  <div id="slotsList"></div>
 
   <script>
-    const API_URL = "/slots";
+    const API_URL = "https://ai-waiter-beta.onrender.com";
 
     async function loadSlots() {
-      try {
-        const res = await fetch(API_URL);
-        const slots = await res.json();
-        const list = document.getElementById("slots-list");
-        list.innerHTML = "";
-        slots.forEach(slot => {
-          const li = document.createElement("li");
-          li.textContent = `${slot.time} - Capacity: ${slot.capacity}`;
-          const btn = document.createElement("button");
-          btn.textContent = "❌ Delete";
-          btn.className = "delete-btn";
-          btn.onclick = async () => {
-            await fetch(`${API_URL}/${slot.id}`, { method: "DELETE" });
-            loadSlots();
-          };
-          li.appendChild(btn);
-          list.appendChild(li);
-        });
-      } catch (err) {
-        console.error("Error loading slots:", err);
-      }
+      const res = await fetch(`${API_URL}/slots/`);
+      const slots = await res.json();
+
+      const container = document.getElementById("slotsList");
+      container.innerHTML = "";
+
+      slots.forEach(slot => {
+        const div = document.createElement("div");
+        div.className = "slot";
+        div.innerHTML = `
+          <span>${slot.time}</span>
+          <button onclick="deleteSlot(${slot.id})">Delete</button>
+        `;
+        container.appendChild(div);
+      });
     }
 
-    document.getElementById("slot-form").onsubmit = async (e) => {
-      e.preventDefault();
-      const time = document.getElementById("time").value;
-      const capacity = parseInt(document.getElementById("capacity").value);
-      await fetch(API_URL, {
+    async function addSlot() {
+      const time = document.getElementById("slotTime").value;
+      if (!time) return alert("Enter a slot time!");
+
+      await fetch(`${API_URL}/slots/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ time, capacity })
+        body: JSON.stringify({ time })
       });
-      e.target.reset();
-      loadSlots();
-    };
 
-    // Load slots on page load
+      document.getElementById("slotTime").value = "";
+      loadSlots();
+    }
+
+    async function deleteSlot(id) {
+      await fetch(`${API_URL}/slots/${id}`, { method: "DELETE" });
+      loadSlots();
+    }
+
     loadSlots();
   </script>
 </body>

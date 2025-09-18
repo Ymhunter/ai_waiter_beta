@@ -45,21 +45,27 @@ def dashboard():
 # -----------------------------------------------------------------------------
 functions = [
     {
-        "name": "get_slots",
-        "description": "Get available booking slots",
-        "parameters": {"type": "object", "properties": {}}
+        "type": "function",
+        "function": {
+            "name": "get_slots",
+            "description": "Get available booking slots",
+            "parameters": {"type": "object", "properties": {}}
+        }
     },
     {
-        "name": "create_booking",
-        "description": "Create a booking for a slot",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "slot_id": {"type": "integer"},
-                "customer_name": {"type": "string"},
-                "customer_email": {"type": "string"}
-            },
-            "required": ["slot_id", "customer_name", "customer_email"]
+        "type": "function",
+        "function": {
+            "name": "create_booking",
+            "description": "Create a booking for a slot",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "slot_id": {"type": "integer"},
+                    "customer_name": {"type": "string"},
+                    "customer_email": {"type": "string"}
+                },
+                "required": ["slot_id", "customer_name", "customer_email"]
+            }
         }
     }
 ]
