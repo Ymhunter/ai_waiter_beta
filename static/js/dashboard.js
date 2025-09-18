@@ -2,9 +2,9 @@ const slotsTable = document.querySelector("#slotsTable tbody");
 const bookingsTable = document.querySelector("#bookingsTable tbody");
 const lastUpdated = document.getElementById("lastUpdated");
 
-// ------------------------------
-// Render Slots
-// ------------------------------
+//
+// ---------- RENDERING ----------
+//
 function renderSlots(slots) {
   slotsTable.innerHTML = "";
   for (const [date, times] of Object.entries(slots)) {
@@ -20,9 +20,6 @@ function renderSlots(slots) {
   }
 }
 
-// ------------------------------
-// Render Bookings
-// ------------------------------
 function renderBookings(bookings) {
   bookingsTable.innerHTML = "";
   bookings.forEach((b) => {
@@ -42,15 +39,15 @@ function renderBookings(bookings) {
   });
 }
 
-// ------------------------------
-// Add Slot Form
-// ------------------------------
+//
+// ---------- SLOT FORM ----------
+//
 document.getElementById("slotForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const date = document.getElementById("slotDate").value;
   let time = document.getElementById("slotTime").value;
 
-  // Normalize time to HH:MM
+  // Normalize to HH:MM
   if (time && time.length >= 5) {
     time = time.slice(0, 5);
   }
@@ -69,11 +66,13 @@ document.getElementById("slotForm").addEventListener("submit", async (e) => {
   }
 });
 
-// ------------------------------
-// Slot + Booking Actions
-// ------------------------------
+//
+// ---------- ACTIONS ----------
+//
 async function deleteSlot(date, time) {
-  const res = await fetch(`/api/slots?date=${date}&time=${time}`, { method: "DELETE" });
+  const res = await fetch(`/api/slots?date=${date}&time=${time}`, {
+    method: "DELETE",
+  });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     alert("⚠️ Could not delete slot: " + (err.detail || res.statusText));
@@ -94,16 +93,16 @@ async function markPaid(id) {
   }
 }
 
-// ------------------------------
-// Timestamp
-// ------------------------------
+//
+// ---------- TIMESTAMP ----------
+//
 function updateTimestamp() {
   lastUpdated.innerText = "Last updated: " + new Date().toLocaleTimeString();
 }
 
-// ------------------------------
-// WebSocket real-time updates
-// ------------------------------
+//
+// ---------- WEBSOCKET ----------
+//
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
@@ -117,15 +116,19 @@ ws.onmessage = (event) => {
 ws.onopen = () => console.log("✅ Connected to live updates");
 ws.onclose = () => console.log("❌ Disconnected from live updates");
 
-// ------------------------------
-// Initial Load
-// ------------------------------
+//
+// ---------- INITIAL LOAD ----------
+//
 async function initialLoad() {
   try {
-    const slotsRes = await fetch("/api/slots?ts=" + Date.now(), { cache: "no-store" });
+    const slotsRes = await fetch("/api/slots?ts=" + Date.now(), {
+      cache: "no-store",
+    });
     renderSlots(await slotsRes.json());
 
-    const bookingsRes = await fetch("/api/bookings?ts=" + Date.now(), { cache: "no-store" });
+    const bookingsRes = await fetch("/api/bookings?ts=" + Date.now(), {
+      cache: "no-store",
+    });
     renderBookings(await bookingsRes.json());
 
     updateTimestamp();
