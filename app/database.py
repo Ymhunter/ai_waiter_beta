@@ -5,25 +5,20 @@ from sqlalchemy import (
     inspect, text, Date, Time, UniqueConstraint
 )
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, Session
 
 # ------------------------------
-# Database URL
+# Database URL (Postgres recommended, fallback SQLite)
 # ------------------------------
-# Example MySQL URL: mysql+pymysql://user:password@host:3306/dbname
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./barbershop.db")
 
-if not DATABASE_URL:
-    # ✅ fallback to SQLite if no MySQL configured
-    DATABASE_URL = "sqlite:///./barbershop.db"
-
-# ------------------------------
-# Create SQLAlchemy Engine
-# ------------------------------
 if DATABASE_URL.startswith("sqlite"):
-    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        DATABASE_URL, connect_args={"check_same_thread": False}
+    )
 else:
-    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+    # Works with postgresql://... from Supabase, Neon, Render, etc.
+    engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -34,12 +29,12 @@ Base = declarative_base()
 class Booking(Base):
     __tablename__ = "bookings"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True)   # UUID
     customer_name = Column(String, index=True)
     service = Column(String)
-    date = Column(Date)
-    time = Column(Time)
-    status = Column(String, default="pending")
+    date = Column(Date)     # ✅ Proper DATE type
+    time = Column(Time)     # ✅ Proper TIME type
+    status = Column(String, default="pending")  # pending / paid / cancelled
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
 
 
@@ -51,18 +46,20 @@ class Slot(Base):
     time = Column(Time)
     available = Column(Boolean, default=True)
 
+    # ✅ Prevent duplicate slots for same date+time
     __table_args__ = (UniqueConstraint("date", "time", name="uq_slot_datetime"),)
 
 
 # ------------------------------
-# Create tables
+# Create tables (if not exist)
 # ------------------------------
 Base.metadata.create_all(bind=engine)
 
 # ------------------------------
-# Helpers
+# Helpers for safe parsing
 # ------------------------------
 def to_date(v):
+    """Convert string/Date to datetime.date"""
     if not v:
         return None
     if isinstance(v, DateType):
@@ -77,12 +74,14 @@ def to_date(v):
 
 
 def to_time(v):
+    """Convert string/Time to datetime.time"""
     if not v:
         return None
     if isinstance(v, TimeType):
         return v
     text_v = str(v)
     try:
+        # Handles "09:00", "09:00:00", "09:00:00.000Z"
         if "Z" in text_v:
             text_v = text_v.replace("Z", "")
         return datetime.fromisoformat(f"2000-01-01T{text_v}").time()
@@ -93,3 +92,29 @@ def to_time(v):
             except Exception:
                 continue
     return None
+
+
+# ------------------------------
+# SQLite-only migration helper
+# ------------------------------
+def ensure_created_at_column():
+    if DATABASE_URL.startswith("sqlite"):
+        inspector = inspect(engine)
+        cols = [c["name"] for c in inspector.get_columns("bookings")]
+        if "created_at" not in cols:
+            with engine.connect() as conn:
+                conn.execute(text("ALTER TABLE bookings ADD COLUMN created_at VARCHAR"))
+                conn.commit()
+
+ensure_created_at_column()
+
+# ------------------------------
+# DB dependency for FastAPI
+# ------------------------------
+def get_db():
+    """FastAPI dependency that yields a DB session and closes it properly."""
+    db: Session = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
