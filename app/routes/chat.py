@@ -74,14 +74,16 @@ Your task:
             db.add(booking)
             slot_exists.available = False
             db.commit()
-            trigger_broadcast(db)
+
+            # 🔥 fix: broadcast update properly
+            slots = get_slots_sync(db)
+            bookings = get_bookings_sync(db)
+            await trigger_broadcast(slots, bookings)
 
             return {
                 "status": "reserved",
-                "reply": f"✅ Reserved! Booking ID: {booking_id} for {booking.customer_name} at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}.<br><br>💳 Pay now?",
+                "reply": f"✅ Reserved! Booking ID: {booking_id} for {booking.customer_name} "
+                        f"at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}.<br><br>💳 Pay now?",
                 "booking_id": booking_id
             }
 
-        return {"status": "ok", "reply": reply}
-    except Exception as e:
-        return {"status": "error", "reply": f"⚠️ Error: {str(e)}"}
