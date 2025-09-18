@@ -1,37 +1,125 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>AI Booking Chatbot</title>
+  <meta charset="UTF-8" />
+  <title>AI Waiter — Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    body { font-family: Arial; }
-    #chat { border: 1px solid #ccc; padding: 10px; width: 400px; height: 400px; overflow-y: scroll; }
-    .user { color: blue; }
-    .bot { color: green; }
+    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --ring:#334155; --text:#e5e7eb; }
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:720px;margin:24px auto;padding:16px}
+    .card{background:var(--card);border:1px solid var(--ring);border-radius:14px;overflow:hidden}
+    .head{padding:14px 16px;border-bottom:1px solid var(--ring);display:flex;align-items:center;gap:8px}
+    .dot{width:10px;height:10px;border-radius:50%;background:#22c55e}
+    .title{font-weight:600}
+    #chat{height:60vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+    .msg{max-width:85%;padding:10px 12px;border-radius:12px}
+    .me{align-self:flex-end;background:#1e293b}
+    .bot{align-self:flex-start;background:#0b1220;border:1px solid var(--ring)}
+    .sys{align-self:center;background:transparent;color:var(--muted);font-size:14px}
+    form{display:flex;gap:8px;padding:12px;border-top:1px solid var(--ring);background:rgba(0,0,0,.2)}
+    input,button{font:inherit}
+    input{flex:1;padding:12px 14px;border:1px solid var(--ring);border-radius:10px;background:#0b1220;color:var(--text);outline:none}
+    input:focus{border-color:#475569}
+    button{padding:12px 16px;border-radius:10px;border:1px solid var(--ring);background:#111827;color:var(--text);cursor:pointer}
+    button[disabled]{opacity:.6;cursor:not-allowed}
+    small{color:var(--muted)}
+    .meta{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-top:1px dashed var(--ring)}
+    .tag{font-size:12px;color:#a3e635;background:#1a2e05;border:1px solid #3f6212;padding:4px 8px;border-radius:999px}
   </style>
 </head>
 <body>
-  <h1>Booking Chatbot 🤖</h1>
-  <div id="chat"></div>
-  <input type="text" id="message" placeholder="Type your message...">
-  <button onclick="sendMessage()">Send</button>
+  <div class="wrap">
+    <div class="card">
+      <div class="head">
+        <span class="dot"></span>
+        <div class="title">AI Waiter — Booking Assistant</div>
+      </div>
 
-<script>
-async function sendMessage() {
-  const input = document.getElementById("message");
-  const msg = input.value;
-  input.value = "";
+      <div id="chat">
+        <div class="msg sys">hi! ask me to book a table or check availability.</div>
+      </div>
 
-  document.getElementById("chat").innerHTML += `<p class="user">You: ${msg}</p>`;
+      <div class="meta">
+        <small>API: <code id="apiLabel">https://ai-waiter-beta.onrender.com/chat</code></small>
+        <span class="tag" id="statusTag">idle</span>
+      </div>
 
-  const res = await fetch("https://ai-waiter-beta.onrender.com/chat", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({message: msg})
-  });
-  const data = await res.json();
-  document.getElementById("chat").innerHTML += `<p class="bot">Bot: ${data.reply}</p>`;
-}
-</script>
+      <form id="chatForm" autocomplete="off">
+        <input id="message" type="text" placeholder="Type your message… (press Enter)" required />
+        <button id="sendBtn" type="submit">Send</button>
+      </form>
+    </div>
+  </div>
 
+  <script>
+    // --- config ---
+    const API_BASE = "https://ai-waiter-beta.onrender.com/chat"; // your deployed /chat
+    document.getElementById('apiLabel').textContent = API_BASE;
+
+    const chat = document.getElementById('chat');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('message');
+    const sendBtn = document.getElementById('sendBtn');
+    const statusTag = document.getElementById('statusTag');
+
+    function addMsg(text, who = 'bot') {
+      const div = document.createElement('div');
+      div.className = `msg ${who}`;
+      div.textContent = text;
+      chat.appendChild(div);
+      chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendMessage(e) {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      addMsg(text, 'me');
+      input.value = '';
+      input.focus();
+      sendBtn.disabled = true;
+      statusTag.textContent = 'sending…';
+
+      try {
+        const res = await fetch(API_BASE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text }) // matches FastAPI Body(..., embed=True) OR your handler reading .get("message")
+        });
+
+        let data;
+        try { data = await res.json(); }
+        catch { throw new Error('Server returned non-JSON response'); }
+
+        if (!res.ok) {
+          addMsg(`error ${res.status}: ${data?.detail || JSON.stringify(data)}`, 'bot');
+        } else if (data.reply) {
+          addMsg(data.reply, 'bot');
+        } else if (data.raw_tool_calls) {
+          addMsg('tool call: ' + JSON.stringify(data.raw_tool_calls), 'bot');
+        } else if (data.error) {
+          addMsg('error: ' + data.error, 'bot');
+        } else {
+          addMsg(JSON.stringify(data), 'bot');
+        }
+      } catch (err) {
+        addMsg('network error: ' + err.message, 'bot');
+      } finally {
+        sendBtn.disabled = false;
+        statusTag.textContent = 'idle';
+      }
+    }
+
+    form.addEventListener('submit', sendMessage);
+    // send on Enter even if button not focused (already handled by form submit, but keep UX tight)
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); form.requestSubmit(); }
+    });
+
+    // greet
+    setTimeout(() => addMsg("try: 'show available slots' or 'book me tomorrow 7pm under Alice, alice@example.com'"), 250);
+  </script>
 </body>
 </html>
