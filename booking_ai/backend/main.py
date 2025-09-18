@@ -38,7 +38,6 @@ functions = [
 def chat(user_input: dict = Body(...)):
     """Main chat endpoint"""
     try:
-        # extract text from request
         user_message = user_input.get("message", "")
 
         response = client.chat.completions.create(
@@ -51,14 +50,16 @@ def chat(user_input: dict = Body(...)):
             tool_choice="auto"
         )
 
-        # grab assistant reply
         msg = response.choices[0].message
 
-        # check if model wants to call a function
         if msg.tool_calls:
+            import json
             tool_call = msg.tool_calls[0]
             fn_name = tool_call.function.name
-            args = eval(tool_call.function.arguments)
+            try:
+                args = json.loads(tool_call.function.arguments or "{}")
+            except Exception:
+                args = {}
 
             if fn_name == "get_slots":
                 slots_res = requests.get(f"{PUBLIC_URL}/slots/").json()
@@ -68,7 +69,6 @@ def chat(user_input: dict = Body(...)):
                 booking_res = requests.post(f"{PUBLIC_URL}/bookings/", json=args).json()
                 return {"reply": f"Booking confirmed ✅: {booking_res}"}
 
-        # otherwise just return the assistant reply
         return {"reply": msg.content}
 
     except Exception as e:
