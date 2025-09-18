@@ -1,52 +1,34 @@
-from fastapi import APIRouter, Request, Form, Depends
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import APIRouter, Form, Request, Depends
+from fastapi.responses import RedirectResponse, HTMLResponse
 from starlette.middleware.sessions import SessionMiddleware
 import os
 
 router = APIRouter()
-security = HTTPBasic()
 
-ADMIN_USER = os.getenv("ADMIN_USER", "admin")
-ADMIN_PASS = os.getenv("ADMIN_PASS", "password")
+# Example users (username: password)
+USERS = {
+    "admin": "1234",
+    "staff1": "pass1",
+    "staff2": "pass2"
+}
 
-
-# ---- Login Page ----
 @router.get("/login", response_class=HTMLResponse)
 async def login_page():
-    return """
-    <html>
-    <body style="font-family:sans-serif;">
-      <h2>🔐 Admin Login</h2>
-      <form action="/login" method="post">
-        <input type="text" name="username" placeholder="Username"/><br><br>
-        <input type="password" name="password" placeholder="Password"/><br><br>
-        <button type="submit">Login</button>
-      </form>
-    </body>
-    </html>
-    """
+    return RedirectResponse(url="/static/login.html")
 
-
-# ---- Handle Login ----
 @router.post("/login")
-async def login(username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and password == ADMIN_PASS:
-        response = RedirectResponse(url="/dashboard", status_code=302)
-        response.set_cookie(key="session", value="authenticated", httponly=True)
-        return response
-    return HTMLResponse("<h3>❌ Invalid credentials</h3>", status_code=401)
+async def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    if username in USERS and USERS[username] == password:
+        request.session["user"] = username
+        return RedirectResponse(url="/dashboard", status_code=302)
+    return RedirectResponse(url="/login?error=invalid", status_code=302)
 
-
-# ---- Handle Logout ----
 @router.get("/logout")
-async def logout():
-    response = RedirectResponse(url="/login", status_code=302)
-    response.delete_cookie("session")
-    return response
+async def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=302)
 
-
-# ---- Dependency: Require Login ----
 def require_login(request: Request):
-    if request.cookies.get("session") != "authenticated":
+    if "user" not in request.session:
         return RedirectResponse(url="/login", status_code=302)
+    return request.session["user"]
