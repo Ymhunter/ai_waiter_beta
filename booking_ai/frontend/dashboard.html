@@ -1,113 +1,123 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>AI Waiter — Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    :root { --bg:#0f172a; --card:#111827; --muted:#94a3b8; --ring:#334155; --text:#e5e7eb; }
-    body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,Segoe UI,Roboto}
-    .wrap{max-width:960px;margin:24px auto;padding:16px}
-    h2{margin:24px 0 12px;font-size:20px}
-    .card{background:var(--card);border:1px solid var(--ring);border-radius:14px;padding:16px;margin-bottom:24px}
-    form{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-    input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid var(--ring)}
-    input{flex:1;background:#0b1220;color:var(--text)}
-    button{background:#1e293b;color:var(--text);cursor:pointer}
-    button:disabled{opacity:.6}
-    table{width:100%;border-collapse:collapse;margin-top:12px}
-    th,td{padding:8px;border-bottom:1px solid var(--ring);text-align:left}
-    th{color:var(--muted);font-weight:500}
-    .small{font-size:13px;color:var(--muted)}
+    body {
+      margin: 0;
+      font: 16px system-ui, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 16px;
+      background: #1e293b;
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+    }
+    main {
+      flex: 1;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    section {
+      margin-bottom: 32px;
+    }
+    h2 {
+      margin-bottom: 12px;
+      border-bottom: 2px solid #334155;
+      padding-bottom: 6px;
+    }
+    button {
+      margin: 4px 0;
+      padding: 8px 12px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    th, td {
+      padding: 8px;
+      border: 1px solid #334155;
+      text-align: left;
+    }
+    th {
+      background: #1e293b;
+    }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <h1>AI Waiter — Worker Dashboard</h1>
-
-    <div class="card">
-      <h2>Slots</h2>
-      <form id="slotForm">
-        <input type="text" id="slotTime" placeholder="Enter slot time e.g. 2025-09-19T19:00" required />
-        <button type="submit">Add Slot</button>
-      </form>
-      <table>
-        <thead><tr><th>ID</th><th>Time</th></tr></thead>
-        <tbody id="slotsBody"></tbody>
+  <header>📊 AI Waiter Dashboard</header>
+  <main>
+    <section>
+      <h2>Available Slots</h2>
+      <button onclick="loadSlots()">🔄 Refresh Slots</button>
+      <table id="slotsTable">
+        <thead>
+          <tr><th>ID</th><th>Time</th><th>Available</th></tr>
+        </thead>
+        <tbody></tbody>
       </table>
-    </div>
+    </section>
 
-    <div class="card">
+    <section>
       <h2>Bookings</h2>
-      <form id="bookingForm">
-        <input type="number" id="slotId" placeholder="Slot ID" required />
-        <input type="text" id="custName" placeholder="Customer Name" required />
-        <input type="email" id="custEmail" placeholder="Customer Email" required />
-        <button type="submit">Add Booking</button>
-      </form>
-      <table>
-        <thead><tr><th>ID</th><th>Slot</th><th>Name</th><th>Email</th></tr></thead>
-        <tbody id="bookingsBody"></tbody>
+      <button onclick="loadBookings()">🔄 Refresh Bookings</button>
+      <table id="bookingsTable">
+        <thead>
+          <tr><th>ID</th><th>Slot ID</th><th>Name</th><th>Email</th></tr>
+        </thead>
+        <tbody></tbody>
       </table>
-    </div>
-  </div>
+    </section>
+  </main>
 
   <script>
-    const API = "https://ai-waiter-beta.onrender.com"; // your backend
+    const API = "https://ai-waiter-beta.onrender.com";
 
-    async function fetchSlots() {
+    async function loadSlots() {
       const res = await fetch(`${API}/slots/`);
-      const slots = await res.json();
-      const tbody = document.getElementById('slotsBody');
-      tbody.innerHTML = '';
-      slots.forEach(s => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${s.id}</td><td>${s.time}</td>`;
+      const data = await res.json();
+      const tbody = document.querySelector("#slotsTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(slot => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${slot.id}</td><td>${slot.time}</td><td>${slot.is_available}</td>`;
         tbody.appendChild(tr);
       });
     }
 
-    async function fetchBookings() {
+    async function loadBookings() {
       const res = await fetch(`${API}/bookings/`);
-      const bookings = await res.json();
-      const tbody = document.getElementById('bookingsBody');
-      tbody.innerHTML = '';
-      bookings.forEach(b => {
-        const tr = document.createElement('tr');
+      const data = await res.json();
+      const tbody = document.querySelector("#bookingsTable tbody");
+      tbody.innerHTML = "";
+      data.forEach(b => {
+        const tr = document.createElement("tr");
         tr.innerHTML = `<td>${b.id}</td><td>${b.slot_id}</td><td>${b.customer_name}</td><td>${b.customer_email}</td>`;
         tbody.appendChild(tr);
       });
     }
 
-    document.getElementById('slotForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const time = document.getElementById('slotTime').value;
-      await fetch(`${API}/slots/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ time })
-      });
-      e.target.reset();
-      fetchSlots();
-    });
-
-    document.getElementById('bookingForm').addEventListener('submit', async e => {
-      e.preventDefault();
-      const slot_id = parseInt(document.getElementById('slotId').value, 10);
-      const customer_name = document.getElementById('custName').value;
-      const customer_email = document.getElementById('custEmail').value;
-      await fetch(`${API}/bookings/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ slot_id, customer_name, customer_email })
-      });
-      e.target.reset();
-      fetchBookings();
-    });
-
-    // load on start
-    fetchSlots();
-    fetchBookings();
+    // Load data on startup
+    loadSlots();
+    loadBookings();
   </script>
 </body>
 </html>
