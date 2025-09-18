@@ -5,7 +5,7 @@ from .. import models, schemas, database
 router = APIRouter(prefix="/slots", tags=["Slots"])
 
 
-@@router.get("/")
+@router.get("/")
 def get_slots(db: Session = Depends(database.get_db)):
     slots = db.query(models.Slot).all()
     return [{"id": s.id, "time": s.time} for s in slots]
