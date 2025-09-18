@@ -55,8 +55,9 @@ def chat(payload: dict = Body(...)):
             ],
         )
 
+        # ✅ Access attributes instead of using .get()
         msg = response.choices[0].message
-        return {"reply": msg.get("content")}
+        return {"reply": msg.content}   # <-- fixed
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
