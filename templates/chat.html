@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Barbershop Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <link rel="stylesheet" href="/static/css/chat.css" />
+</head>
+<body>
+  <header>💈 Barbershop Assistant</header>
+
+  <div id="chat">
+    <div class="msg bot">
+      👋 Welcome! How can I help you today?
+    </div>
+    <div class="suggestions" id="suggestions">
+      <button onclick="quickAsk('What services do you offer?')">What services do you offer?</button>
+      <button onclick="quickAsk('What dates are available?')">What dates are available?</button>
+      <button onclick="quickAsk('I want to book a haircut today!')">I want to book a haircut today!</button>
+    </div>
+  </div>
+
+  <div id="inputArea">
+    <input id="userInput" placeholder="Type your message..." />
+    <button onclick="sendMessage()">➤</button>
+  </div>
+
+  <script src="/static/js/chat.js"></script>
+</body>
+</html>
