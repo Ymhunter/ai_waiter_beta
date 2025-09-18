@@ -1,22 +1,22 @@
-import asyncio
 from fastapi import WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
-from .helpers import get_slots_sync, get_bookings_sync
+import asyncio
 
 active_connections: list[WebSocket] = []
 
-async def dashboard_ws(websocket: WebSocket):
+async def connect_ws(websocket: WebSocket):
+    """Handle new WebSocket connections (chat + dashboard)."""
     await websocket.accept()
     active_connections.append(websocket)
     try:
         while True:
-            await websocket.receive_text()
+            await websocket.receive_text()  # keep alive
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
+        if websocket in active_connections:
+            active_connections.remove(websocket)
 
-async def broadcast_update(db: Session):
-    slots = get_slots_sync(db)
-    bookings = get_bookings_sync(db)
+async def broadcast_update(slots, bookings):
+    """Send updated slots & bookings to all connected clients."""
     payload = {"slots": slots, "bookings": bookings}
     to_remove = []
     for ws in active_connections:
@@ -27,5 +27,6 @@ async def broadcast_update(db: Session):
     for ws in to_remove:
         active_connections.remove(ws)
 
-def trigger_broadcast(db: Session):
-    asyncio.create_task(broadcast_update(db))
+def trigger_broadcast(slots, bookings):
+    """Schedule broadcast without blocking API response."""
+    asyncio.create_task(broadcast_update(slots, bookings))
