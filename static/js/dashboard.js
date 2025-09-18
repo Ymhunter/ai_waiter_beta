@@ -104,7 +104,7 @@ function updateTimestamp() {
 // ---------- WEBSOCKET ----------
 //
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+const ws = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
@@ -112,6 +112,7 @@ ws.onmessage = (event) => {
   if (data.bookings) renderBookings(data.bookings);
   updateTimestamp();
 };
+
 
 ws.onopen = () => console.log("✅ Connected to live updates");
 ws.onclose = () => console.log("❌ Disconnected from live updates");
