@@ -3,19 +3,23 @@ import asyncio
 
 active_connections: list[WebSocket] = []
 
-
 async def connect_ws(websocket: WebSocket):
     """Handle new WebSocket connections (chat + dashboard)."""
     await websocket.accept()
     active_connections.append(websocket)
     try:
         while True:
-            # Just keep the connection alive by waiting for incoming messages
-            await websocket.receive_text()
+            try:
+                # Wait for messages, but timeout so we can send heartbeats
+                msg = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                print("📩 Received WS message:", msg)
+            except asyncio.TimeoutError:
+                # Send heartbeat every 30s to keep connection alive
+                await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
         if websocket in active_connections:
             active_connections.remove(websocket)
-
+            print("❌ WS disconnected")
 
 async def broadcast_update(slots, bookings):
     """Send updated slots & bookings to all connected clients."""
@@ -24,11 +28,12 @@ async def broadcast_update(slots, bookings):
     for ws in active_connections:
         try:
             await ws.send_json(payload)
-        except Exception:
+        except Exception as e:
+            print("⚠️ WS send failed:", e)
             to_remove.append(ws)
     for ws in to_remove:
-        active_connections.remove(ws)
-
+        if ws in active_connections:
+            active_connections.remove(ws)
 
 def trigger_broadcast(slots, bookings):
     """Schedule broadcast without blocking API response."""
