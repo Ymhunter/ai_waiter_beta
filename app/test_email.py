@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ..email_utils import send_email
+from .email_utils import send_email
 
 router = APIRouter(prefix="/test", tags=["test"])
 
