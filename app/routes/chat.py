@@ -1,5 +1,5 @@
 import re, json, uuid, ast
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, BackgroundTasks
 from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
@@ -10,15 +10,20 @@ from ..helpers import (
     clean_expired_slots,
     clean_stale_bookings,
     get_slots_sync,
-    get_bookings_sync,   # ← make sure this is imported
+    get_bookings_sync,
 )
 from ..websocket_manager import trigger_broadcast
+from ..email_utils import send_email  # 👈 new helper
 
 router = APIRouter()
 
 
 @router.post("/chat")
-async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)):
+async def chat_with_agent(
+    user_input: ChatMessage,
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = None
+):
     try:
         # housekeeping
         clean_expired_slots(db)
@@ -29,7 +34,7 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
         future_slots = [f"{d} {t}" for d, times in slots_now.items() for t in times]
         slot_info = ", ".join(future_slots) if future_slots else "No slots available"
 
-        # system prompt: force valid double-quoted JSON when all info present
+        # system prompt: force valid JSON including email
         messages = [
             {
                 "role": "system",
@@ -38,11 +43,12 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
                     f"Available slots are: {slot_info}.\n\n"
                     "Your task:\n"
                     "- Collect the customer's name\n"
+                    "- Collect the customer's email\n"
                     "- Collect a valid available date (YYYY-MM-DD)\n"
                     "- Collect a valid available time (HH:MM)\n\n"
                     "Rules:\n"
-                    '- If the user already gave all three (name, date, time), respond ONLY with valid JSON:\n'
-                    '{"service":"Haircut","date":"YYYY-MM-DD","time":"HH:MM","customer_name":"NAME"}\n'
+                    '- If the user already gave all four (name, email, date, time), respond ONLY with valid JSON:\n'
+                    '{"service":"Haircut","date":"YYYY-MM-DD","time":"HH:MM","customer_name":"NAME","customer_email":"EMAIL"}\n'
                     "- Use double quotes for all keys and string values.\n"
                     "- Do NOT add any extra words or formatting. If something is missing, only ask for that piece."
                 ),
@@ -63,8 +69,7 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
             try:
                 booking_data = json.loads(raw_json)  # strict JSON first
             except json.JSONDecodeError:
-                # fallback if the model used single quotes etc.
-                booking_data = ast.literal_eval(raw_json)
+                booking_data = ast.literal_eval(raw_json)  # fallback
 
             # verify slot availability
             slot_exists = (
@@ -88,15 +93,27 @@ async def chat_with_agent(user_input: ChatMessage, db: Session = Depends(get_db)
                 date=to_date(booking_data["date"]),
                 time=to_time(booking_data["time"]),
                 status="pending",
+                customer_email=booking_data.get("customer_email"),
             )
             db.add(booking)
             slot_exists.available = False
             db.commit()
 
-            # broadcast latest state to all dashboards
+            # broadcast latest state to dashboards
             updated_slots = get_slots_sync(db)
             updated_bookings = get_bookings_sync(db)
-            trigger_broadcast(updated_slots, updated_bookings)  # ← no await
+            trigger_broadcast(updated_slots, updated_bookings)
+
+            # send confirmation email
+            if booking.customer_email:
+                subject = "Your Barbershop Appointment Confirmation"
+                html = f"""
+                <h2>Hi {booking.customer_name},</h2>
+                <p>Your {booking.service} is booked for 
+                {booking.date} at {booking.time.strftime('%H:%M')}.</p>
+                <p>We look forward to seeing you! 💈</p>
+                """
+                background_tasks.add_task(send_email, booking.customer_email, subject, html)
 
             return {
                 "status": "reserved",

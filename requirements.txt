@@ -9,3 +9,4 @@ itsdangerous
 python-multipart>=0.0.9
 jinja2>=3.0
 websockets
+sendgrid>=6.9.0
