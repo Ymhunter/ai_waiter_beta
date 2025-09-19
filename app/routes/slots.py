@@ -15,10 +15,11 @@ router = APIRouter(prefix="/api/slots", tags=["slots"])
 # ------------------------------
 # Get all available slots
 # ------------------------------
-@router.get("")
+@router.get("/")
 async def get_slots(db: Session = Depends(get_db)):
     try:
         slots = get_slots_sync(db)
+        logger.info(f"Fetched {sum(len(v) for v in slots.values())} slots")
         return slots
     except Exception as e:
         logger.error(f"Error fetching slots: {e}")
@@ -28,9 +29,9 @@ async def get_slots(db: Session = Depends(get_db)):
 # ------------------------------
 # Add a new slot
 # ------------------------------
-@router.post("")
+@router.post("/")
 async def add_slot(slot: dict = Body(...), db: Session = Depends(get_db)):
-    logger.info(f"Received add_slot request: {slot}")
+    logger.info(f"🟢 Received add_slot request: {slot}")
 
     d = to_date(slot.get("date"))
     t = to_time(slot.get("time"))
@@ -55,23 +56,23 @@ async def add_slot(slot: dict = Body(...), db: Session = Depends(get_db)):
         bookings = get_bookings_sync(db)
         trigger_broadcast(slots, bookings)
 
-        logger.info(f"Slot added successfully: {d} {t}")
+        logger.info(f"✅ Slot added successfully: {d} {t}")
         return {"status": "ok"}
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error adding slot: {e}")
+        logger.error(f"❌ Error adding slot: {e}")
         raise HTTPException(status_code=500, detail="Database error")
 
 
 # ------------------------------
 # Delete a slot
 # ------------------------------
-@router.delete("")
+@router.delete("/")
 async def delete_slot(date: str, time: str, db: Session = Depends(get_db)):
-    logger.info(f"Received delete_slot request: {date} {time}")
+    logger.info(f"🟠 Received delete_slot request: {date} {time}")
 
     d = to_date(date)
     t = to_time(time)
@@ -93,12 +94,12 @@ async def delete_slot(date: str, time: str, db: Session = Depends(get_db)):
         bookings = get_bookings_sync(db)
         trigger_broadcast(slots, bookings)
 
-        logger.info(f"Slot deleted successfully: {d} {t}")
+        logger.info(f"✅ Slot deleted successfully: {d} {t}")
         return {"status": "deleted"}
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"Error deleting slot: {e}")
+        logger.error(f"❌ Error deleting slot: {e}")
         raise HTTPException(status_code=500, detail="Database error")
