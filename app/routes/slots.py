@@ -1,6 +1,7 @@
 import logging
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from ..database import Slot, to_date, to_time, get_db
 from ..helpers import get_slots_sync, get_bookings_sync
@@ -15,11 +16,10 @@ router = APIRouter(prefix="/api/slots", tags=["slots"])
 # ------------------------------
 # Get all available slots
 # ------------------------------
-@router.get("/")
+@router.get("")
 async def get_slots(db: Session = Depends(get_db)):
     try:
         slots = get_slots_sync(db)
-        logger.info(f"Fetched {sum(len(v) for v in slots.values())} slots")
         return slots
     except Exception as e:
         logger.error(f"Error fetching slots: {e}")
@@ -29,9 +29,9 @@ async def get_slots(db: Session = Depends(get_db)):
 # ------------------------------
 # Add a new slot
 # ------------------------------
-@router.post("/")
+@router.post("")
 async def add_slot(slot: dict = Body(...), db: Session = Depends(get_db)):
-    logger.info(f"🟢 Received add_slot request: {slot}")
+    logger.info(f"Received add_slot request: {slot}")
 
     d = to_date(slot.get("date"))
     t = to_time(slot.get("time"))
@@ -43,7 +43,9 @@ async def add_slot(slot: dict = Body(...), db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Please select a valid time")
 
     try:
-        existing = db.query(Slot).filter_by(date=d, time=t).first()
+        existing = db.query(Slot).filter(
+            and_(Slot.date == d, Slot.time == t)
+        ).first()
         if existing:
             raise HTTPException(status_code=400, detail="Slot already exists")
 
@@ -63,29 +65,32 @@ async def add_slot(slot: dict = Body(...), db: Session = Depends(get_db)):
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Error adding slot: {e}")
+        logger.error(f"Error adding slot: {e}")
         raise HTTPException(status_code=500, detail="Database error")
 
 
 # ------------------------------
 # Delete a slot
 # ------------------------------
-@router.delete("/")
+@router.delete("")
 async def delete_slot(date: str, time: str, db: Session = Depends(get_db)):
-    logger.info(f"🟠 Received delete_slot request: {date} {time}")
+    logger.info(f"Received delete_slot request: {date} {time}")
 
     d = to_date(date)
     t = to_time(time)
+
     if not d or not t:
         raise HTTPException(
             status_code=400, detail=f"Invalid date/time: {date} {time}"
         )
 
     try:
-        print("DEBUG add_slot:", d, t)
-        existing = db.query(Slot).filter_by(date=d, time=t).first()
-        print("DEBUG found existing slot:", existing)
+        slot = db.query(Slot).filter(
+            and_(Slot.date == d, Slot.time == t)
+        ).first()
+
         if not slot:
+            logger.warning(f"❌ Slot not found: {d} {t}")
             raise HTTPException(status_code=404, detail="Slot not found")
 
         db.delete(slot)
@@ -96,12 +101,12 @@ async def delete_slot(date: str, time: str, db: Session = Depends(get_db)):
         bookings = get_bookings_sync(db)
         trigger_broadcast(slots, bookings)
 
-        logger.info(f"✅ Slot deleted successfully: {d} {t}")
+        logger.info(f"🗑️ Slot deleted successfully: {d} {t}")
         return {"status": "deleted"}
 
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        logger.error(f"❌ Error deleting slot: {e}")
+        logger.error(f"Error deleting slot: {e}")
         raise HTTPException(status_code=500, detail="Database error")
