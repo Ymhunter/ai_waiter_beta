@@ -4,11 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy.orm import Session
 
-from .routes import pages, intent, chat, slots, bookings, payment, auth
+from .routes import pages, intent, chat, slots, bookings, payment, auth, test_email
 from .database import get_db
 from .websocket_manager import connect_ws
 from .routes.auth import require_login
-from .routes import test_email
 
 
 app = FastAPI(title="Barbershop Booking AI Agent")

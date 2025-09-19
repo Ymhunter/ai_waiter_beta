@@ -1,15 +1,11 @@
 from fastapi import APIRouter
-from .email_utils import send_email
+from ..email_utils import send_email
 
 router = APIRouter(prefix="/test", tags=["test"])
 
 
 @router.get("/email")
 async def test_email():
-    """
-    Simple endpoint to test SendGrid email delivery.
-    Visit /test/email to trigger a test email.
-    """
     subject = "📧 Test Email from Barbershop Booking"
     html = """
     <h2>✅ Test Successful!</h2>
@@ -17,7 +13,7 @@ async def test_email():
     <p>If you received this, your email setup works correctly 🎉</p>
     """
 
-    # Change this to your real email for testing
+    # ⚠️ Replace with your verified email in SendGrid
     to_email = "your_verified_email@example.com"
 
     response = send_email(to_email, subject, html)
