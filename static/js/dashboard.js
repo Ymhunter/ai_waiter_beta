@@ -2,13 +2,11 @@ const slotsTable = document.querySelector("#slotsTable tbody");
 const bookingsTable = document.querySelector("#bookingsTable tbody");
 const lastUpdated = document.getElementById("lastUpdated");
 
-//
-// ---------- RENDERING ----------
-//
+// Render slots
 function renderSlots(slots) {
   slotsTable.innerHTML = "";
   for (const [date, times] of Object.entries(slots)) {
-    times.forEach((time) => {
+    times.forEach(time => {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${date}</td>
@@ -20,12 +18,14 @@ function renderSlots(slots) {
   }
 }
 
+// Render bookings
 function renderBookings(bookings) {
   bookingsTable.innerHTML = "";
-  bookings.forEach((b) => {
+  bookings.forEach(b => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${b.customer_name}</td>
+      <td>${b.customer_email || ""}</td>
       <td>${b.service}</td>
       <td>${b.date}</td>
       <td>${b.time}</td>
@@ -39,23 +39,20 @@ function renderBookings(bookings) {
   });
 }
 
-//
-// ---------- SLOT FORM ----------
-//
+// Add slot form
 document.getElementById("slotForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const date = document.getElementById("slotDate").value;
   let time = document.getElementById("slotTime").value;
 
-  // Normalize to HH:MM
   if (time && time.length >= 5) {
     time = time.slice(0, 5);
   }
 
   const res = await fetch("/api/slots", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ date, time }),
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ date, time })
   });
 
   if (!res.ok) {
@@ -66,26 +63,20 @@ document.getElementById("slotForm").addEventListener("submit", async (e) => {
   }
 });
 
-//
-// ---------- ACTIONS ----------
-//
+// Slot + Booking actions
 async function deleteSlot(date, time) {
-  const res = await fetch(`/api/slots?date=${date}&time=${time}`, {
-    method: "DELETE",
-  });
+  const res = await fetch(`/api/slots?date=${date}&time=${time}`, { method: "DELETE" });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     alert("⚠️ Could not delete slot: " + (err.detail || res.statusText));
   }
 }
-
 async function cancelBooking(id) {
   const res = await fetch(`/api/bookings/${id}/cancel`, { method: "POST" });
   if (!res.ok) {
     alert("⚠️ Could not cancel booking");
   }
 }
-
 async function markPaid(id) {
   const res = await fetch(`/api/bookings/${id}/paid`, { method: "POST" });
   if (!res.ok) {
@@ -93,51 +84,33 @@ async function markPaid(id) {
   }
 }
 
-//
-// ---------- TIMESTAMP ----------
-//
+// Timestamp
 function updateTimestamp() {
   lastUpdated.innerText = "Last updated: " + new Date().toLocaleTimeString();
 }
 
-//
-// ---------- WEBSOCKET ----------
-//
+// WebSocket connection
 const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
-ws.onmessage = (event) => {
-  console.log("📩 WS message:", event.data);  // 👈 log raw message
-  const data = JSON.parse(event.data);
-  if (data.type === "ping") return;
+const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
 
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
   if (data.slots) renderSlots(data.slots);
   if (data.bookings) renderBookings(data.bookings);
   updateTimestamp();
 };
 
-
-
 ws.onopen = () => console.log("✅ Connected to live updates");
 ws.onclose = () => console.log("❌ Disconnected from live updates");
 
-//
-// ---------- INITIAL LOAD ----------
-//
+// Initial load
 async function initialLoad() {
-  try {
-    const slotsRes = await fetch("/api/slots?ts=" + Date.now(), {
-      cache: "no-store",
-    });
-    renderSlots(await slotsRes.json());
+  const slotsRes = await fetch("/api/slots?ts=" + Date.now(), { cache: "no-store" });
+  renderSlots(await slotsRes.json());
 
-    const bookingsRes = await fetch("/api/bookings?ts=" + Date.now(), {
-      cache: "no-store",
-    });
-    renderBookings(await bookingsRes.json());
+  const bookingsRes = await fetch("/api/bookings?ts=" + Date.now(), { cache: "no-store" });
+  renderBookings(await bookingsRes.json());
 
-    updateTimestamp();
-  } catch (err) {
-    console.error("⚠️ Failed to load initial data", err);
-  }
+  updateTimestamp();
 }
 initialLoad();
