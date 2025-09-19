@@ -82,7 +82,9 @@ async def delete_slot(date: str, time: str, db: Session = Depends(get_db)):
         )
 
     try:
-        slot = db.query(Slot).filter_by(date=d, time=t).first()
+        print("DEBUG add_slot:", d, t)
+        existing = db.query(Slot).filter_by(date=d, time=t).first()
+        print("DEBUG found existing slot:", existing)
         if not slot:
             raise HTTPException(status_code=404, detail="Slot not found")
 
