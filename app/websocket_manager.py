@@ -18,18 +18,19 @@ async def connect_ws(websocket: WebSocket):
         if websocket in active_connections:
             active_connections.remove(websocket)
 async def broadcast_update(slots, bookings):
-    """Send updated slots & bookings to all connected clients."""
+    print(f"📡 Broadcasting update: {len(active_connections)} connections")
     payload = {"slots": slots, "bookings": bookings}
     to_remove = []
     for ws in active_connections:
         try:
             await ws.send_json(payload)
+            print("✅ Sent update to client")
         except Exception as e:
-            print("⚠️ WS send failed:", e)
+            print("❌ Failed to send update:", e)
             to_remove.append(ws)
     for ws in to_remove:
-        if ws in active_connections:
-            active_connections.remove(ws)
+        active_connections.remove(ws)
+
 
 def trigger_broadcast(slots, bookings):
     """Schedule broadcast without blocking API response."""
