@@ -31,6 +31,7 @@ class Booking(Base):
 
     id = Column(String, primary_key=True, index=True)   # UUID
     customer_name = Column(String, index=True)
+    customer_email = Column(String, index=True)
     service = Column(String)
     date = Column(Date)     # ✅ Proper DATE type
     time = Column(Time)     # ✅ Proper TIME type
