@@ -8,6 +8,7 @@ from .routes import pages, intent, chat, slots, bookings, payment, auth
 from .database import get_db
 from .websocket_manager import connect_ws
 from .routes.auth import require_login
+from .routes import test_email
 
 
 app = FastAPI(title="Barbershop Booking AI Agent")
@@ -28,6 +29,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # ------------------------------
 # Routers
 # ------------------------------
+app.include_router(test_email.router)
 app.include_router(auth.router)      
 app.include_router(pages.router)
 app.include_router(intent.router)
