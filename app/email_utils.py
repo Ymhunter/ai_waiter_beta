@@ -1,27 +1,42 @@
 import os
-import requests
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Email
 
+# Load environment variables
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@acme.com")
+SENDER_EMAIL = os.getenv("SENDER_EMAIL")  # 👈 must be verified in SendGrid (Single Sender)
+REPLY_TO_EMAIL = os.getenv("REPLY_TO_EMAIL", SENDER_EMAIL)  # default same as sender
 
-def send_email(to: str, subject: str, body: str):
+
+def send_email(to_email: str, subject: str, html_content: str):
     """
-    Send an email using SendGrid API
+    Send an email using SendGrid.
+
+    Args:
+        to_email (str): recipient email address
+        subject (str): subject of the email
+        html_content (str): HTML content of the email
     """
     if not SENDGRID_API_KEY:
-        raise RuntimeError("SENDGRID_API_KEY not set")
+        raise RuntimeError("Missing SENDGRID_API_KEY in environment")
+    if not SENDER_EMAIL:
+        raise RuntimeError("Missing SENDER_EMAIL in environment")
 
-    url = "https://api.sendgrid.com/v3/mail/send"
-    headers = {
-        "Authorization": f"Bearer {SENDGRID_API_KEY}",
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "personalizations": [{"to": [{"email": to}]}],
-        "from": {"email": FROM_EMAIL},
-        "subject": subject,
-        "content": [{"type": "text/html", "value": body}],
-    }
+    message = Mail(
+        from_email=SENDER_EMAIL,
+        to_emails=to_email,
+        subject=subject,
+        html_content=html_content,
+    )
 
-    response = requests.post(url, headers=headers, json=payload)
-    return response.status_code, response.text
+    # 👇 Add Reply-To header
+    message.reply_to = Email(REPLY_TO_EMAIL)
+
+    try:
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        response = sg.send(message)
+        print(f"✅ Email sent to {to_email}, status {response.status_code}")
+        return response
+    except Exception as e:
+        print(f"❌ Error sending email: {e}")
+        return None
