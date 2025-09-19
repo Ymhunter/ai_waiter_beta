@@ -9,10 +9,10 @@ async def connect_ws(websocket: WebSocket):
     try:
         while True:
             try:
-                # wait for message, but time out to keep alive
+                # Wait for a message with a timeout
                 await asyncio.wait_for(websocket.receive_text(), timeout=30)
             except asyncio.TimeoutError:
-                # keep connection alive with ping
+                # Send ping to keep connection alive
                 await websocket.send_json({"type": "ping"})
     except WebSocketDisconnect:
         if websocket in active_connections:

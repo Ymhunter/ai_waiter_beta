@@ -46,3 +46,4 @@ async def dashboard_ws(websocket: WebSocket, db: Session = Depends(get_db)):
 @app.websocket("/ws")
 async def chat_ws(websocket: WebSocket, db: Session = Depends(get_db)):
     await connect_ws(websocket)
+print("🔑 Session secret:", os.getenv("SESSION_SECRET", "CHANGE_ME_SECRET"))

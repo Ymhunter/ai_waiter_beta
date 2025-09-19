@@ -108,10 +108,13 @@ const ws = new WebSocket(`${protocol}://${window.location.host}/ws/dashboard`);
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
+  if (data.type === "ping") return;  // 👈 ignore keepalive pings
+
   if (data.slots) renderSlots(data.slots);
   if (data.bookings) renderBookings(data.bookings);
   updateTimestamp();
 };
+
 
 
 ws.onopen = () => console.log("✅ Connected to live updates");
