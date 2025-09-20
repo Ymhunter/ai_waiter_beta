@@ -1,5 +1,5 @@
 import re, json, uuid, ast
-from fastapi import APIRouter, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from sqlalchemy.orm import Session
 
 from ..models import ChatMessage
@@ -13,7 +13,7 @@ from ..helpers import (
     get_bookings_sync,
 )
 from ..websocket_manager import trigger_broadcast
-from ..email_utils import send_email  # 👈 new helper
+from ..email_utils import send_email
 
 router = APIRouter()
 
@@ -22,19 +22,23 @@ router = APIRouter()
 async def chat_with_agent(
     user_input: ChatMessage,
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = Depends()
 ):
     try:
-        # housekeeping
+        # ------------------------------
+        # Housekeeping
+        # ------------------------------
         clean_expired_slots(db)
         clean_stale_bookings(db)
 
-        # build available slots summary for the prompt
+        # Build slots summary for assistant
         slots_now = get_slots_sync(db)
         future_slots = [f"{d} {t}" for d, times in slots_now.items() for t in times]
         slot_info = ", ".join(future_slots) if future_slots else "No slots available"
 
-        # system prompt: force valid JSON including email
+        # ------------------------------
+        # Prompt setup
+        # ------------------------------
         messages = [
             {
                 "role": "system",
@@ -58,20 +62,27 @@ async def chat_with_agent(
             messages.extend(user_input.history)
         messages.append({"role": "user", "content": user_input.message})
 
-        # call OpenAI
-        response = client.chat.completions.create(model="gpt-4o-mini", messages=messages)
+        # ------------------------------
+        # Call OpenAI
+        # ------------------------------
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages
+        )
         reply = (response.choices[0].message.content or "").strip()
 
-        # try to extract a JSON object from the reply
+        # ------------------------------
+        # Try to extract booking JSON
+        # ------------------------------
         match = re.search(r"\{.*\}", reply, re.DOTALL)
         if match:
             raw_json = match.group()
             try:
-                booking_data = json.loads(raw_json)  # strict JSON first
+                booking_data = json.loads(raw_json)
             except json.JSONDecodeError:
-                booking_data = ast.literal_eval(raw_json)  # fallback
+                booking_data = ast.literal_eval(raw_json)
 
-            # verify slot availability
+            # Verify slot exists & is available
             slot_exists = (
                 db.query(Slot)
                 .filter_by(
@@ -82,9 +93,14 @@ async def chat_with_agent(
                 .first()
             )
             if not slot_exists:
-                return {"status": "unavailable", "reply": "❌ Sorry, that slot is not available."}
+                return {
+                    "status": "unavailable",
+                    "reply": "❌ Sorry, that slot is not available."
+                }
 
-            # create booking and mark slot unavailable
+            # ------------------------------
+            # Create booking
+            # ------------------------------
             booking_id = str(uuid.uuid4())
             booking = Booking(
                 id=booking_id,
@@ -98,13 +114,20 @@ async def chat_with_agent(
             db.add(booking)
             slot_exists.available = False
             db.commit()
+            db.refresh(booking)
 
-            # broadcast latest state to dashboards
+            print(f"📩 Booking saved: {booking.id}, {booking.customer_email}")
+
+            # ------------------------------
+            # Broadcast to dashboard
+            # ------------------------------
             updated_slots = get_slots_sync(db)
             updated_bookings = get_bookings_sync(db)
             trigger_broadcast(updated_slots, updated_bookings)
 
-            # send confirmation email
+            # ------------------------------
+            # Send confirmation email
+            # ------------------------------
             if booking.customer_email:
                 subject = "Your Barbershop Appointment Confirmation"
                 html = f"""
@@ -113,19 +136,28 @@ async def chat_with_agent(
                 {booking.date} at {booking.time.strftime('%H:%M')}.</p>
                 <p>We look forward to seeing you! 💈</p>
                 """
-                background_tasks.add_task(send_email, booking.customer_email, subject, html)
+                background_tasks.add_task(
+                    send_email,
+                    booking.customer_email,
+                    subject,
+                    html
+                )
+                print(f"📧 Email queued for {booking.customer_email}")
 
             return {
                 "status": "reserved",
                 "reply": (
                     f"✅ Reserved! Booking ID: {booking_id} for {booking.customer_name} "
-                    f"at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}.<br><br>💳 Pay now?"
+                    f"at {booking.time.strftime('%H:%M')} on {booking.date.isoformat()}."
                 ),
                 "booking_id": booking_id,
             }
 
-        # otherwise, just relay the assistant’s reply (e.g., asking for missing info)
+        # ------------------------------
+        # No JSON → just ask for missing info
+        # ------------------------------
         return {"status": "ok", "reply": reply}
 
     except Exception as e:
-        return {"status": "error", "reply": f"⚠️ Error: {str(e)}"}
+        print("❌ Chat error:", e)
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")

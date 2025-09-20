@@ -33,6 +33,7 @@ async function sendMessage() {
   suggestions.style.display = "none";
 
   try {
+    // intent check
     const intentRes = await fetch("/intent", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -47,6 +48,7 @@ async function sendMessage() {
     console.warn("Intent check failed", err);
   }
 
+  // loading indicator
   const loading = document.createElement("span");
   loading.className = "loading";
   loading.innerText = "⏳...";
@@ -62,8 +64,9 @@ async function sendMessage() {
     const data = await res.json();
     loading.remove();
     appendMessage(data.reply, "bot");
+
     if (data.status === "reserved") {
-      addPayButton(data.booking_id);
+      appendMessage("✅ Your booking is confirmed! Check your email for details.", "bot");
     }
   } catch (err) {
     loading.remove();
@@ -195,43 +198,14 @@ async function sendBooking(date, time) {
     const data = await res.json();
     loading.remove();
     appendMessage(data.reply, "bot");
-    if (data.status === "reserved") addPayButton(data.booking_id);
+    if (data.status === "reserved") {
+      appendMessage("✅ Your booking is confirmed! Check your email for details.", "bot");
+    }
   } catch (err) {
     loading.remove();
     appendMessage("⚠️ Error: " + err.message, "bot");
   }
 }
-
-function addPayButton(bookingId) {
-  const payBtn = document.createElement("button");
-  payBtn.innerText = "💳 Pay with Klarna";
-  payBtn.className = "pay-btn";
-  payBtn.onclick = () => payWithKlarna("Haircut", "Customer", 200, bookingId);
-  chat.appendChild(payBtn);
-  scrollToBottom();
-}
-
-async function payWithKlarna(service, customer, amount, bookingId) {
-  try {
-    const res = await fetch("/pay/klarna", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ service, customer_name: customer, amount, booking_id: bookingId }),
-    });
-    const data = await res.json();
-    if (data.order_id) {
-      window.location.href = `/checkout?klarna_order_id=${data.order_id}`;
-    } else {
-      appendMessage("⚠️ Klarna error: " + JSON.stringify(data), "bot");
-    }
-  } catch (err) {
-    appendMessage("⚠️ Payment error: " + err.message, "bot");
-  }
-}
-
-input.addEventListener("keypress", (e) => {
-  if (e.key === "Enter") sendMessage();
-});
 
 // ------------------------------
 // WebSocket real-time updates
@@ -243,9 +217,12 @@ ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
   if (data.slots) {
     console.log("🔄 Slots updated", data.slots);
-    // Optionally: rebuild calendar if user is booking
   }
   if (data.bookings) {
     console.log("🔄 Bookings updated", data.bookings);
   }
 };
+
+input.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") sendMessage();
+});

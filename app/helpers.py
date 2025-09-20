@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 from .database import Slot, Booking, to_date, to_time
-
+from sqlalchemy import not_
 def clean_expired_slots(db: Session):
     now = datetime.now()
     for s in db.query(Slot).all():
@@ -45,7 +45,11 @@ def get_slots_sync(db: Session):
 
 def get_bookings_sync(db: Session):
     clean_stale_bookings(db)
-    bookings = db.query(Booking).all()
+    bookings = (
+        db.query(Booking)
+        .filter(Booking.status != "pending")   # only show confirmed or cancelled
+        .all()
+    )
     result = []
     for b in bookings:
         result.append({
