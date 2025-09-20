@@ -22,7 +22,7 @@ router = APIRouter()
 async def chat_with_agent(
     user_input: ChatMessage,
     db: Session = Depends(get_db),
-    background_tasks: BackgroundTasks = Depends()
+    background_tasks: BackgroundTasks  # ✅ FastAPI injects automatically
 ):
     try:
         # ------------------------------
@@ -108,7 +108,7 @@ async def chat_with_agent(
                 service=booking_data["service"],
                 date=to_date(booking_data["date"]),
                 time=to_time(booking_data["time"]),
-                status="pending",
+                status="pending",  # default status
                 customer_email=booking_data.get("customer_email"),
             )
             db.add(booking)
